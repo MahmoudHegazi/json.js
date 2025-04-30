@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bootstrap Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+  <style>
+    html, body {
+      height: 100% !important;
+      width: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  
+<div class="container-fluid m-0 p-0 h-100 w-100" id="app">
+</div>
+
+<script>
+const SPAUI = {
+	type: 'app',
+	name: 'engine',
+	childs: [{
+		name: 'game_engine',
+		type: 'view',
+		childs: [{
+				type: 'block',
+				name: 'main',
+				childs: [{
+						name: 'main_top',
+						type: 'block',
+						childs: [
+                           {
+                             type: 'container',
+                             name: 'screen_container',
+                             childs: [
+                                 {
+                                     type: 'component',
+							         name: 'screen',							
+							         className: 'Screen',
+							         args: []
+                                 }
+                             ]
+                           }
+                        ]
+					},
+					{
+						name: 'main_bottom',
+						type: 'block',
+						childs: []
+					}
+				]
+			},
+			{
+				name: 'aside',
+                type: 'block',
+				childs: [{
+						name: 'aside_top',
+						type: 'block',
+						childs: []
+					},
+					{
+						name: 'aside_bottom',
+						type: 'block',
+						childs: []
+					}
+				]
+			}
+		]
+	}]
+};
+
+/* reamning is app isValidViews error (first childs of app must be views objs only) */
+class System {
+	_SPAUI = {};
+	_componentIds = [];
+	_childsObjs = {}; /* more data */
+	_childs = [];
+    _childsObjects = {};
+	_childsArgs = [];
+	_uiClasses = {};
+	_parentId = null;
+	_parentSelector = null;
+	_id = null;
+	_selector = null;
+	_attrsArgs = null;
+	_componentAttrs = null;
+	_childConstructor = null;
+	/*allowedContainers = [View, Block, Container];*/
+	/* need update (option add container childs block not allowed to be child of other block,
+	   app: View, view: Block, block: Container, container: Component) */
+	static defaultBS = 'border border-primary p-0 m-0';
+    static _types = ['block', 'view', 'container', 'component'];
+	static _allTypes = ['app', 'block', 'view', 'container', 'component'];
+	constructor(SPAUI, parentId, parentSelector, uiClasses) {
+
+		// instanceof System
+		this.SPAUI = SPAUI;
+		this.type = this.SPAUI.type;
+		this.childConstructor = this.type;
+		this.uiClasses = uiClasses;
+		this.childsArgs = this.SPAUI.childs;
+		this.parentId = parentId;
+		this.parentSelector = parentSelector;
+		this.id = this.SPAUI.name;
+
+		this.attrsArgs = [this.SPAUI.classes, this.SPAUI.attrs];
+		this.componentAttrs = `id="${this.id}" class="${System.defaultBS} ${this.attrsArgs}"`;
+
+		/* add the childs recurisve native handled by oop constructor and extend */
+		this.createChilds();
+	}
+	static get types() {
+		return this._types;
+	}
+	static get allTypes() {
+		return this._allTypes;
+	}
+	get allowedContainers() {
+		return [View, Block, Container];
+	}
+    get childConstructors() {
+        /* inhirte protecting from allowedContainers and let changes one place in allowedContainers */
+        return this.allowedContainers.reduce((ac, c)=>{
+            ac[c.name.toLowerCase()] = c;
+            return ac;
+        }, {});
+    }
+    get childsObjects() {
+        return this._childsObjects;
+    }
+	get parentSelector() {
+		return this._parentSelector;
+	}
+	get selector() {
+		return this._selector;
+	}
+
+	get componentIds() {
+		return this._componentIds;
+	}
+    
+	get childConstructor() {
+		return this._childConstructor;
+	}
+	set childConstructor(thisType) {
+
+		if (this.isValidSystemContainerClassInstance(thisType) && thisType !== 'app') {
+			this._childConstructor = this.allowedContainers[this.allowedContainers.indexOf(this.childConstructors[thisType])];
+		} else if (thisType === 'app') {
+            this._childConstructor = null;
+        } else if (thisType === 'component') { 
+        alert("hi component");
+        } else {
+
+            System.throwError(`invalid childConstructor Provided type:${thisType}: `, 'System-setChildConstructor', 'Error Unable to load data...', thisType);
+        }
+	}
+
+	get parentId() {
+		return this._parentId;
+	}
+	set parentId(parentId) {
+		if (System.isValidId(parentId)) {
+			this._parentId = parentId;
+			this._parentSelector = `#${parentId}`;
+		} else {
+			System.throwError(`invalid Component's Parent name Provided: ${parentId}`, 'System-SetParentId', 'Error Unable to load data...');
+		}
+	}
+	get id() {
+		return this._id;
+	}
+	set id(id) {
+		/* selector valid must have parent first even app his parent is HTML container provided */
+		if (System.isValidId(id) && System.isValidId(this.parentId) && this.parentSelector) {
+			this._id = id.trim();
+			this._selector = this.parentSelector;/*okchangable dynamic no need set goodnicepyking now when update id think sqlalchemy auto 2 other row based changed selector no set selector and if not this way now u need set id alone and selector alone*/
+		} else {
+			System.throwError(`invalid Component's name Provided Provided: ${id}`, 'System-SetId', 'Error Unable to load data...', null);
+		}
+	}
+    get selector() {
+        return this._selector;
+    }
+	set selector(ignoredArg) {
+		if (this.isIdHierarchySelector(this.parentSelector) && System.isValidId(this.id)) {
+			const isTheApp = (this.parentSelector.trim().replace('#').trim() === this.id);
+			if (isTheApp) {
+				this._selector = this.parentSelector; /* app is first also it refernce */
+			} else {
+				this._selector = `${this.parentSelector} #${this.id}`;
+			}
+		} else {
+			System.throwError(`Unable create selector due to issue in parentSelector: ${this.parentSelector} or id:${this.id}`, 'System-SetSelector', 'Error Unable to load data...');
+		}
+	}
+    get parentSelector() {
+        return this._parentSelector;
+    }
+    set parentSelector(parentOrSelector) {
+		if (this.isIdHierarchySelector(parentOrSelector)) {
+			/* handle null parent case app so only need selector */
+			this._parentSelector = parentOrSelector.trim();
+		} else {
+			System.throwError(`invalid parentSelector: ${parentSelector}`, 'System-SetParentSelector', 'Error Unable to load data...');
+		}
+	}
+	get SPAUI() {
+		return this._SPAUI;
+	}
+
+	set SPAUI(SPAUI) {
+		if (this.isValidSPAUI(SPAUI)) {
+			this._SPAUI = SPAUI;
+		} else {
+			System.throwError(`invalid SPAUI provided: `, 'System-setSPAUI', 'Error Unable to load data...', SPAUI);
+		}
+
+	}
+	get attrsArgs() {
+		return this._attrsArgs;
+	}
+	set attrsArgs(attrsArgs) {
+		if (this.isValidSPAUI(this.SPAUI)) {
+			this._attrsArgs = attrsArgs.reduce((ac, c) => {
+				if (((typeof(c) === 'string') && (c.trim() != ''))) {
+					ac.push(c.trim());
+				}
+				return ac;
+			}, []).join(" ");
+		} else {
+			System.throwError(`invalid SetAttrsArgs Must called after setting SPAUI:`, 'System-SetParentId', 'Error Unable to load data...', this.SPAUI);
+		}
+	}
+	get childsArgs() {
+		return this._childsArgs;
+	}
+	set childsArgs(childs) {
+		if (this.isValidChilds(childs)) {
+			this._childsArgs = childs;
+		} else {
+			System.throwError(`invalid one or more childs found unable initiate your component: `, 'System-childsArgs', 'Error Unable to load data...', childs);
+		}
+	}
+	get uiClasses() {
+		return this._uiClasses;
+	}
+	set uiClasses(uiClasses) {
+		if (this.isValidUiClasses(uiClasses)) {
+			this._uiClasses = uiClasses;
+		} else {
+			System.throwError(`Invalid UI Classes Provided to APP Make sure to list all classes you will use in your SPA UI Obj ex {custom: Custom}: `, 'System-SetUiClasses', 'Error Unable to load data...', uiClasses);
+		}
+	}
+
+	get componentAttrs() {
+		return this._componentAttrs;
+	}
+	set componentAttrs(componentAttrs) {
+		if (typeof(componentAttrs) === 'string' && componentAttrs.trim() != '') {
+			this._componentAttrs = componentAttrs;
+		} else {
+			System.throwError(`ComponentAttrs can not be null System issue:${componentAttrs}`, 'System-SetComponentAttrs', 'Error Unable to load data...');
+		}
+	}
+	set componentIds(id) {
+		if (Array.isArray(id) && id.length === 0) {
+			this._componentIds = [];
+			this.clean('componentIds');
+		} else if (System.isValidId(id) && Array.isArray(this._componentIds)) {
+			if (!this._componentIds.includes(id)) {
+				this._componentIds.push(id);
+			} else {
+				System.throwError(`duplicated view id:${id}`, 'App-SetComponentIds', 'Error Unable to load data...');
+			}
+		} else {
+			System.throwError(`invalid id can not append viewId: ${id}`, 'App-componentIds', 'Error Unable to load data...');
+		}
+	}
+	get childsObjs() {
+		return this._childsObjs;
+	}
+	set childsObjs(childObj) {
+		if (this.isValidChildObj(childObj)) {
+			this._childsObjs[childObj['prop']] = childObj;
+		} else if (data && typeof(data) === 'object' && (Object.keys(data).length === 0)) {
+			this._childsObjs = {};
+			this.clean('childsObjs');
+		} else {
+			System.throwError(`invalid Component App must be have type "view"`, 'System-setChildsObjs', 'Error Unable to load data...');
+		}
+	}
+    
+	get childs() {
+		return this._childs;
+	}
+	set childs(child) {
+		if (Array.isArray(child) && child.length === []) {
+			this.clean('childs');
+		} else if (child instanceof SystemContainer || child instanceof Component) {
+            /* quick access versions provided for this frame work do, child with id or with include */
+			this.childs.push(child);
+            this._childsObjects[child.id] = child;
+		} else {
+			System.throwError(`Each component must have childs array:`, 'Component-setChilds', 'Error Unable to load data...', child);
+		}
+	}
+
+	createChilds() {
+		this.childsArgs.forEach((obj) => {
+			if (this.isValidSystemContainerClassInstance(obj.type)) {
+				this.childConstructor = obj.type;
+				const newComponent = new this.childConstructor(obj, this.id, this.selector, this.uiClasses);
+				/* this.componentIds = obj.name make sure not pass if any issue*/
+				this.componentIds = newComponent.id;
+				this.childs = newComponent;
+				this.childsObjs = {
+					prop: newComponent.id,
+					obj: newComponent,
+					constructor: this.childConstructor,
+					parentId: this.parentId
+				};
+			} else if (obj.type === 'component') {
+				alert("im component");
+			} else {
+				System.throwError(`Unkown type proveded :${obj.type} allowed typesare view, block, container, component`, 'Component-setChilds', 'Error Unable to load data...', obj);
+			}
+
+		});
+	}
+	static isValidId(id) {
+		return ((id && typeof(id) === 'string' && id.trim().match(/^[a-z]{1,}[0-9\-_a-z]*$/i)) ? id.trim() : false);
+	}
+
+	isValidSPAUI(SPAUI) {
+		return ((SPAUI && typeof(SPAUI) === 'object' && System.isValidId(SPAUI.name) && System.allTypes.includes(SPAUI.type)) ? true : false);
+	}
+    isValidSystemContainerClassInstance(type) {
+        return ((this.childConstructors.hasOwnProperty(type) && this.isValidClass(this.childConstructors[type]) && this.allowedContainers.includes(this.childConstructors[type]))? true : false);
+    }
+	isValidUiClasses(uiClasses) {
+		let valid = true;
+		if (uiClasses && typeof(uiClasses) === 'object') {
+			for (let className in uiClasses) {
+				const classConstructor = uiClasses[className];
+				if (!(classConstructor && classConstructor.prototype instanceof Component)) {
+					valid = false;
+				}
+			}
+		}
+		return valid;
+	}
+	isComponentClass(obj) {
+		return ((obj && typeof(obj) === 'object' && obj.type === 'component' && System.isValidId(obj.name)) ? true : false); /* need handled right way componentclass */
+	}
+	isValidChilds(childs) {
+		return ((Array.isArray(childs) && childs.filter((obj) => (this.isValidSPAUI(obj) || this.isComponentClass(obj))).length === childs.length));
+	}
+	isValidClass(classArg) {
+		return (classArg && (typeof(classArg) === 'function' && Function.prototype.toString.call(classArg).match(/^class\s+/)) ? true : false);
+	}
+	isValidChildObj(childObj) {
+        /* arg more data stored */
+		return (
+			(
+				(childObj && typeof(childObj) === 'object') &&
+				(System.isValidId(childObj.prop) &&
+					childObj.obj instanceof SystemContainer &&
+					this.isValidClass(childObj.constructor) &&
+					this.allowedContainers.includes(childObj.constructor))
+			) ? true : false);
+	}
+	isIdHierarchySelector(parentHierarchySelector) {
+		/* ex #app #main #main_container #screen so very accurate handle even duplicated ids usally max 1 plus this faster ex try xpatch vs query by 1 id but this better full selector even handle 1 id incase app is 1selector #app first one */
+		return ((parentHierarchySelector.replaceAll(/\s?#\w+\s?/g, '').length === 0) ? true : false);
+	}
+
+	static throwError(errorArg, exceptionArg, UIMessageArg = null, jsObjArg = null) {
+		const UIMessage = ((typeof(UIMessageArg) === 'string' && UIMessageArg.trim() != '') ? UIMessageArg.trim() : null);
+		if (UIMessage) {
+			console.log(UIMessage);
+		}
+		const jsObj = (jsObjArg && (typeof(jsObjArg) === 'object')) ? JSON.stringify(jsObjArg, null, 4) : '';
+		const error = ((typeof(errorArg) === 'string') ? String(errorArg + jsObj) : 'Unkown system error');
+		const exception = ((typeof(exceptionArg) === 'string' && exceptionArg.trim() != '') ? exceptionArg.trim() : 'System');
+		throw `[Exception-${exception}]:${error}`;
+	}
+	clean(exclude = '') {
+		if (exclude !== 'childsObjs') {
+			this.childsObjs = [];
+		}
+		if (exclude !== 'componentIds') {
+			this.componentIds = [];
+		}
+		if (exclude !== 'childs') {
+			this.childs = [];
+		}
+	}
+	get data() {
+		return this._data;
+	}
+}
+
+class SystemContainer extends System {
+	constructor(SPAUI, parentId, parentSelector) {
+		super(SPAUI, parentId, parentSelector, null);
+	}
+
+	render(tag = 'div') {
+		const parent = (this.parentSelector) ? $(this.parentSelector) : [];
+		if (parent.length) {
+			const current = $(`<${tag} ${this.componentAttrs}></${tag}>`);
+			this.innerElements().forEach((qElm) => (current.append(qElm)));
+			parent.append(current);
+		}
+		return ((this.selector) ? $(this.selector) : []);
+	}
+}
+
+class View extends SystemContainer {
+	constructor(SPAUI, parentId, parentSelector) {
+		super(SPAUI, parentId, parentSelector);
+	}
+}
+
+class Block extends SystemContainer {
+	constructor(SPAUI, parentId, parentSelector) {
+		super(SPAUI, parentId, parentSelector);
+	}
+}
+
+class Container extends SystemContainer {
+	constructor(SPAUI, parentId, parentSelector) {
+		super(SPAUI, parentId, parentSelector);
+	}
+}
+
+
+class Component {
+	constructor(parentId) {
+		this.parentId = parentId;
+	}
+}
+
+class Screen extends Component {
+	constructor(parentId) {
+		super(parentId);
+		this._canvas = null;
+		this.mapScreenId = `map_screen_${this.id}`;
+		this.mapSelector = `${this.selector} #${this.mapScreenId}`;
+
+	}
+	get canvas() {
+		return this._canvas;
+	}
+	set canvas(parentSelector) {
+		const parent = (this.parentSelector) ? $(this.parentSelector) : [];
+		const parentW = (parent.length) ? parseFloat($(this.parentSelector).width()) : null;
+		const parentHeight = (parent.length) ? parseFloat($(this.parentSelector).height()) : null;
+		if (parent.length && parentW && parentHeight) {
+			const canvasId = `canvas_${this.id}`;
+			const canvasStyle = `width: ${parentW}px !important;height: ${parentHeight}px !important;`;
+			const canvasClass = `border border-primary m-0 p-0 d-block`;
+			const attrs = `id="${canvasId}" class="${canvasClass}" width="${parentW}" height="${parentHeight}" style="${canvasStyle}"`;
+			const canvasElm = $(canvasHTML);
+			const ctx = canvasElm[0].getContext("2d");
+			this._canvas = {
+				id: canvasId,
+				selector: `${this.parentSelector} canvas#${canvasId}`,
+				width: parentW,
+				height: parentHeight,
+				style: canvasStyle,
+				class: canvasClass,
+				attrs: attrs,
+				elm: canvasElm,
+				ctx: ctx
+			};
+		}
+	}
+	innerElements() {
+		const elements = [];
+		this.canvas = this.parentSelector;
+		if (this.canvas.elm && this.canvas.elm.length) {
+			elements.push($(`<div id="${this.mapScreenId}" class="m-0 p-0 w-100 h-100"></div>`));
+		}
+		return elements;
+	}
+}
+class App extends System {
+	_views = [];
+	empty = false;
+	constructor(SPAUI, parentId, uiClasses) {
+		const parentSelector = `#${parentId}`; /*later allow dyanmic speacfic app is first parent*/
+		super(SPAUI, parentId, parentSelector, uiClasses);
+	}
+}
+const app = new App(SPAUI, 'app', {
+	Screen: Screen
+});
+console.log(app);
+</script>
+
+</body>
+</html>
