@@ -15,4 +15,4 @@ not write your own html elements in many unkown places no just group them in exp
 
 
 ##### All is System except Component you extend your components from it not extended from other 
-*  also provide way for state saving using local storage or db solution with AJAX API
+*  also provide way for state saving using local storage or db solution with system.AJAX Class
