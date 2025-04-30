@@ -9,5 +9,6 @@ not write your own html elements in many unkown places no just group them in exp
 
 
 # 0 recursive call while it parse nested html systemContainers dynamic provided by developer
-*.  Zero recursive calls while parsing nested HTML system containers!
-*.  You might expect a recursive function, but you,ll be surprised by how "json.js" handles deeply nested structures. Through native OOP design, jsonify and class extension handle nesting dynamically—without any explicit recursion. You *.  simply define your structure in JSONSPA, and the system takes care of it natively and efficiently
+*  Zero recursive calls while parsing nested HTML system containers!
+*  You might expect a recursive function, but you,ll be surprised by how "json.js" handles deeply nested structures. Through native OOP design, jsonify and class extension handle nesting dynamically—without any explicit recursion.
+*  You imply define your structure in JSONSPA, and the system takes care of it natively and efficiently
